@@ -1,4 +1,4 @@
-module raihAsa
+module raih-asa
 
 go 1.17
 
