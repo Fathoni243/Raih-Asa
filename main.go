@@ -121,6 +121,10 @@ type postCategoryBody struct {
 type patchUserBody struct {
 	Name       string `json:"name"`
 	Email      string `json:"email"`
+<<<<<<< HEAD
+=======
+	Password   string `json:"password"`
+>>>>>>> 2b74c910d60efe2b933562790c9ace13de7e872b
 	Foto       string `json:"foto"`
 	Pengalaman string `json:"pengalaman"`
 	Skill      string `json:"skill"`
@@ -755,6 +759,10 @@ func InitRouter() {
 			ID:         uint(parsedId),
 			Name:       body.Name,
 			Email:      body.Email,
+<<<<<<< HEAD
+=======
+			Password:   hash,
+>>>>>>> 2b74c910d60efe2b933562790c9ace13de7e872b
 			Foto:       body.Foto,
 			Pengalaman: body.Pengalaman,
 			Skill:      body.Skill,
@@ -811,7 +819,11 @@ func InitRouter() {
 			ID:         uint(id.(float64)),
 			Name:       body.Name,
 			Email:      body.Email,
+<<<<<<< HEAD
 			// Password:   hash,
+=======
+			Password:   hash,
+>>>>>>> 2b74c910d60efe2b933562790c9ace13de7e872b
 			Foto:       body.Foto,
 			Pengalaman: body.Pengalaman,
 			Skill:      body.Skill,
