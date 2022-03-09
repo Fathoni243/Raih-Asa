@@ -121,10 +121,6 @@ type postCategoryBody struct {
 type patchUserBody struct {
 	Name       string `json:"name"`
 	Email      string `json:"email"`
-<<<<<<< HEAD
-=======
-	Password   string `json:"password"`
->>>>>>> 2b74c910d60efe2b933562790c9ace13de7e872b
 	Foto       string `json:"foto"`
 	Pengalaman string `json:"pengalaman"`
 	Skill      string `json:"skill"`
