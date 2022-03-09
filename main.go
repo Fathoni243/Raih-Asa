@@ -755,10 +755,6 @@ func InitRouter() {
 			ID:         uint(parsedId),
 			Name:       body.Name,
 			Email:      body.Email,
-<<<<<<< HEAD
-=======
-			Password:   hash,
->>>>>>> 2b74c910d60efe2b933562790c9ace13de7e872b
 			Foto:       body.Foto,
 			Pengalaman: body.Pengalaman,
 			Skill:      body.Skill,
@@ -815,11 +811,7 @@ func InitRouter() {
 			ID:         uint(id.(float64)),
 			Name:       body.Name,
 			Email:      body.Email,
-<<<<<<< HEAD
 			// Password:   hash,
-=======
-			Password:   hash,
->>>>>>> 2b74c910d60efe2b933562790c9ace13de7e872b
 			Foto:       body.Foto,
 			Pengalaman: body.Pengalaman,
 			Skill:      body.Skill,
