@@ -17,16 +17,14 @@ var db *gorm.DB
 var r *gin.Engine
 
 type User struct {
-	ID           uint   `gorm : "primarykey"`
-	Name         string `json:"name"`
-	Email        string `json:"email"`
-	Username     string `json:"username"`
-	Password     string `json:"password"`
-	Cek_Password string `json:"cek_password"`
-	Foto         string `json:"foto"`
-	Pengalaman   string `json:"pengalaman"`
-	Skill        string `json:"skill"`
-	Deskripsi    string `json:"deskripsi"`
+	ID         uint   `gorm : "primarykey"`
+	Name       string `json:"name"`
+	Email      string `json:"email"`
+	Password   string `json:"password"`
+	Foto       string `json:"foto"`
+	Pengalaman string `json:"pengalaman"`
+	Skill      string `json:"skill"`
+	Deskripsi  string `json:"deskripsi"`
 }
 
 type Beasiswa struct {
@@ -57,6 +55,11 @@ type Lomba struct {
 	Category      []CategoryLomba `gorm:"many2many:lomba_category;"`
 }
 
+type CekPassword struct {
+	Name_User    string `json:"name_user"`
+	Cek_Password string `json:"cek_password"`
+}
+
 type CategoryBeasiswa struct {
 	ID            uint       `gorm : "primarykey"`
 	Name_Category string     `json : "name_category"`
@@ -68,10 +71,10 @@ type CategoryLomba struct {
 	Name_Category string  `json : "name_category"`
 	Lomba         []Lomba `gorm:"many2many:lomba_category;"`
 }
+
 type postRegisterBody struct {
 	Name       string `json: "name"`
 	Email      string `json: "email"`
-	Username   string `json: "username"`
 	Password   string `json: "password"`
 	Foto       string `json:"foto"`
 	Pengalaman string `json:"pengalaman"`
@@ -118,8 +121,6 @@ type postCategoryBody struct {
 type patchUserBody struct {
 	Name       string `json:"name"`
 	Email      string `json:"email"`
-	Password   string `json:"password"`
-	Username   string `json:"username"`
 	Foto       string `json:"foto"`
 	Pengalaman string `json:"pengalaman"`
 	Skill      string `json:"skill"`
@@ -132,7 +133,8 @@ func InitDB() error {
 		return err
 	}
 	db = _db
-	if err = db.AutoMigrate(&User{}, &Beasiswa{}, &CategoryBeasiswa{}, &Lomba{}, &CategoryLomba{}); err != nil {
+	if err = db.AutoMigrate(&User{}, &Beasiswa{}, &CategoryBeasiswa{},
+		&Lomba{}, &CategoryLomba{}, &CekPassword{}); err != nil {
 		return err
 	}
 	return nil
@@ -191,15 +193,18 @@ func InitRouter() {
 		hash, _ := HashPassword(body.Password)
 
 		user := User{
-			Name:         body.Name,
-			Email:        body.Email,
-			Username:     body.Username,
-			Password:     hash,
+			Name:       body.Name,
+			Email:      body.Email,
+			Password:   hash,
+			Foto:       body.Foto,
+			Pengalaman: body.Pengalaman,
+			Skill:      body.Skill,
+			Deskripsi:  body.Deskripsi,
+		}
+		//pengecekan isi password
+		cekPass := CekPassword{
+			Name_User:    body.Name,
 			Cek_Password: body.Password,
-			Foto:         body.Foto,
-			Pengalaman:   body.Pengalaman,
-			Skill:        body.Skill,
-			Deskripsi:    body.Deskripsi,
 		}
 
 		var cek = []byte(body.Password)
@@ -213,6 +218,7 @@ func InitRouter() {
 
 		if (len(body.Password) >= 8) && (cek[0] >= 65 && cek[0] <= 90) && angka == true {
 			result := db.Create(&user)
+			db.Create(&cekPass) //create Cek Password
 			if result.Error != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"success": false,
@@ -224,16 +230,17 @@ func InitRouter() {
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"message": "Password harus lebih dari 8 karakter, Huruf pertama harus besar, Password harus terdapat angka",
+				"message": "Password harus lebih dari 8 karakter, Huruf pertama harus kapital, Password harus terdapat angka",
 			})
 			return
 		}
 
 		c.JSON(http.StatusCreated, gin.H{
 			"success": true,
-			"message": "User berhasil dibuat.",
+			"message": "Akun berhasil dibuat.",
 			"data": gin.H{
-				"id": user.ID,
+				"nama":  user.Name,
+				"email": user.Email,
 			},
 		})
 	})
@@ -274,7 +281,16 @@ func InitRouter() {
 			"success": true,
 			"message": "Beasiswa berhasil dibuat.",
 			"data": gin.H{
-				"id": beasiswa,
+				"judul":          beasiswa.Judul,
+				"penyelenggara":  beasiswa.Penyelenggara,
+				"deskripsi":      beasiswa.Deskripsi,
+				"poster":         beasiswa.Poster,
+				"tanggal daftar": beasiswa.TanggalDaftar,
+				"tanggal akhir":  beasiswa.TanggalAkhir,
+				"syarat":         beasiswa.Syarat,
+				"cp":             beasiswa.CP,
+				"link":           beasiswa.Link,
+				"Category":       beasiswa.Category,
 			},
 		})
 	})
@@ -306,7 +322,6 @@ func InitRouter() {
 			"success": true,
 			"message": "Kategori berhasil dibuat.",
 			"data": gin.H{
-				"id":            category.ID,
 				"nama kategori": category.Name_Category,
 			},
 		})
@@ -348,7 +363,16 @@ func InitRouter() {
 			"success": true,
 			"message": "Lomba berhasil dibuat.",
 			"data": gin.H{
-				"id": lomba,
+				"judul":          lomba.Judul,
+				"penyelenggara":  lomba.Penyelenggara,
+				"deskripsi":      lomba.Deskripsi,
+				"poster":         lomba.Poster,
+				"tanggal daftar": lomba.TanggalDaftar,
+				"tanggal akhir":  lomba.TanggalAkhir,
+				"syarat":         lomba.Syarat,
+				"cp":             lomba.CP,
+				"link":           lomba.Link,
+				"Category":       lomba.Category,
 			},
 		})
 	})
@@ -380,7 +404,6 @@ func InitRouter() {
 			"success": true,
 			"message": "Kategori berhasil dibuat.",
 			"data": gin.H{
-				"id":            category.ID,
 				"nama kategori": category.Name_Category,
 			},
 		})
@@ -407,8 +430,17 @@ func InitRouter() {
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "Query successful.",
-			"data":    user,
+			"message": "Query success.",
+			"data": gin.H{
+				"ID":         user.ID,
+				"nama":       user.Name,
+				"email":      user.Email,
+				"password":   user.Password,
+				"foto":       user.Foto,
+				"pengalaman": user.Pengalaman,
+				"skill":      user.Skill,
+				"deskripsi":  user.Deskripsi,
+			},
 		})
 	})
 
@@ -423,6 +455,7 @@ func InitRouter() {
 			})
 			return
 		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"message": "Query successful.",
@@ -444,8 +477,7 @@ func InitRouter() {
 		if result := db.Where("email = ?", body.Email).Take(&user); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				// "message": "Error when querying into the database.",
-				"message": "Email salah.",
+				"message": "Email tidak ditemukan.",
 				"error":   result.Error.Error(),
 			})
 			return
@@ -469,10 +501,9 @@ func InitRouter() {
 				"success": true,
 				"message": "Login Berhasil.",
 				"data": gin.H{
-					"id":       user.ID,
-					"name":     user.Name,
-					"username": user.Username,
-					"token":    tokenString,
+					"name":  user.Name,
+					"email": user.Email,
+					"token": tokenString,
 				},
 			})
 			return
@@ -498,7 +529,7 @@ func InitRouter() {
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "Query successful",
+			"message": "Query success",
 			"data":    user,
 		})
 	})
@@ -547,7 +578,7 @@ func InitRouter() {
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "Search successful",
+			"message": "Search success",
 			"data": gin.H{
 				"query": gin.H{
 					"judul":         judul,
@@ -591,7 +622,7 @@ func InitRouter() {
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "Query successful.",
+			"message": "Query success.",
 			"data":    queryCategory,
 		})
 
@@ -641,7 +672,7 @@ func InitRouter() {
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "Search successful",
+			"message": "Search success",
 			"data": gin.H{
 				"query": gin.H{
 					"judul":         judul,
@@ -685,7 +716,7 @@ func InitRouter() {
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "Query successful.",
+			"message": "Query success.",
 			"data":    queryCategory,
 		})
 
@@ -720,21 +751,18 @@ func InitRouter() {
 			return
 		}
 
-		hash, _ := HashPassword(body.Password)
-
 		user := User{
-			ID:           uint(parsedId),
-			Name:         body.Name,
-			Email:        body.Email,
-			Username:     body.Username,
-			Password:     hash,
-			Cek_Password: body.Password,
-			Foto:         body.Foto,
-			Pengalaman:   body.Pengalaman,
-			Skill:        body.Skill,
-			Deskripsi:    body.Deskripsi,
+			ID:         uint(parsedId),
+			Name:       body.Name,
+			Email:      body.Email,
+			Foto:       body.Foto,
+			Pengalaman: body.Pengalaman,
+			Skill:      body.Skill,
+			Deskripsi:  body.Deskripsi,
 		}
+
 		result := db.Model(&user).Updates(user)
+
 		if result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
@@ -777,19 +805,17 @@ func InitRouter() {
 			return
 		}
 
-		hash, _ := HashPassword(body.Password)
+		// hash, _ := HashPassword(body.Password)
 
 		user := User{
-			ID:           uint(id.(float64)),
-			Name:         body.Name,
-			Email:        body.Email,
-			Username:     body.Username,
-			Password:     hash,
-			Cek_Password: body.Password,
-			Foto:         body.Foto,
-			Pengalaman:   body.Pengalaman,
-			Skill:        body.Skill,
-			Deskripsi:    body.Deskripsi,
+			ID:         uint(id.(float64)),
+			Name:       body.Name,
+			Email:      body.Email,
+			// Password:   hash,
+			Foto:       body.Foto,
+			Pengalaman: body.Pengalaman,
+			Skill:      body.Skill,
+			Deskripsi:  body.Deskripsi,
 		}
 		result := db.Model(&user).Updates(user)
 		if result.Error != nil {
