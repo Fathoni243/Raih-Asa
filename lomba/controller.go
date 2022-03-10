@@ -2,8 +2,9 @@ package lomba
 
 import (
 	"net/http"
-	"strconv"
+	"raih-asa/auth"
 	"raih-asa/beasiswa"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -61,7 +62,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		})
 	})
 
-	r.POST("/category/lomba", func(c *gin.Context) {
+	r.POST("/lomba/category", func(c *gin.Context) {
 		var body beasiswa.PostCategoryBody
 		if err := c.BindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -90,6 +91,51 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			"data": gin.H{
 				"nama kategori": category.Name_Category,
 			},
+		})
+	})
+
+	r.POST("/lomba/comment/:id_lomba", auth.AuthMiddleware(), func(c *gin.Context) {
+		idLomba, _ := c.Params.Get("id_lomba")
+		id, _ := c.Get("id")
+		var body PostCommentBody
+		if err := c.BindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"message": "Body is invalid",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		if err := db.Where("id = ?", idLomba).Take(&Lomba{}); err.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Gagal mencari id lomba.",
+				"error":   err.Error.Error(),
+			})
+			return
+		}
+		conv, _ := strconv.ParseUint(idLomba, 10, 64)
+
+		comment := Comment{
+			UserID:   uint(id.(float64)),
+			Contents: body.Contents,
+			Lomba_ID: conv,
+		}
+
+		if result := db.Create(&comment); result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Error when inserting into the database.",
+				"error":   result.Error.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{
+			"success": true,
+			"message": "Komentar berhasil dibuat.",
+			"data":    comment,
 		})
 	})
 

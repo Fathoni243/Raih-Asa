@@ -33,6 +33,7 @@ func main() {
 	}
 
 	InitGin()
+
 	user.InitRouter(db, r)
 	beasiswa.InitRouter(db, r)
 	lomba.InitRouter(db, r)

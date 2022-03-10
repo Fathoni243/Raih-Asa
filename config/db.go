@@ -18,7 +18,7 @@ func InitDB() (*gorm.DB, error) {
 	}
 
 	if err = db.AutoMigrate(&user.User{}, &beasiswa.Beasiswa{}, &beasiswa.CategoryBeasiswa{},
-		&lomba.Lomba{}, &lomba.CategoryLomba{}, &user.CekPassword{}); err != nil {
+		&lomba.Lomba{}, &lomba.CategoryLomba{}, &user.CekPassword{}, &lomba.Comment{}); err != nil {
 		return nil, err
 	}
 

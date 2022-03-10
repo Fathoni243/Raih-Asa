@@ -49,7 +49,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		})
 	})
 
-	r.POST("/category/beasiswa", func(c *gin.Context) {
+	r.POST("/beasiswa/category", func(c *gin.Context) {
 		var body PostCategoryBody
 		if err := c.BindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
