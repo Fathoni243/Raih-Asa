@@ -1,5 +1,9 @@
 package lomba
 
+import "database/sql"
+
+// "database/sql"
+
 type Lomba struct {
 	ID            uint            `gorm : "primarykey"`
 	Judul         string          `json:"judul"`
@@ -22,10 +26,11 @@ type CategoryLomba struct {
 }
 
 type Comment struct {
-	ID       uint   `gorm : "primarykey"`
-	UserID   uint   `json:"user_id"`
-	Contents string `json:"contents"`
-	Lomba_ID uint64
+	ID         uint   `gorm : "primarykey"`
+	UserID     uint   `json:"user_id"`
+	Contents   string `json:"contents"`
+	Lomba_ID   uint64
+	Replied_To sql.NullInt64 `json:"replied_to"`
 }
 
 type PostLombaBody struct {
@@ -42,5 +47,11 @@ type PostLombaBody struct {
 }
 
 type PostCommentBody struct {
-	Contents string `json:"contents"`
+	Contents   string `json:"contents"`
+	Replied_To uint   `json:"replied_to,omitempty"`
+}
+
+type PostEmailBody struct {
+	Subject string `json:"subject"`
+	Message string `json:"message"`
 }

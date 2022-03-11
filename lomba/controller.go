@@ -1,6 +1,7 @@
 package lomba
 
 import (
+	"database/sql"
 	"net/http"
 	"raih-asa/auth"
 	"raih-asa/beasiswa"
@@ -9,6 +10,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
+
+/*
+func sendMail(to []string, subject, message string) error {
+	return nil
+}*/
 
 func InitRouter(db *gorm.DB, r *gin.Engine) {
 
@@ -97,6 +103,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 	r.POST("/lomba/comment/:id_lomba", auth.AuthMiddleware(), func(c *gin.Context) {
 		idLomba, _ := c.Params.Get("id_lomba")
 		id, _ := c.Get("id")
+
 		var body PostCommentBody
 		if err := c.BindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -107,6 +114,8 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			return
 		}
 
+		replied_to1, _ := c.GetQuery("replied_to")
+
 		if err := db.Where("id = ?", idLomba).Take(&Lomba{}); err.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
@@ -115,12 +124,24 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			})
 			return
 		}
+
+		convReply, _ := strconv.ParseUint(replied_to1, 10, 64)
+		repliedTo := sql.NullInt64{
+			Int64: 0,
+			Valid: false,
+		}
+		if convReply != 0 {
+			repliedTo.Int64 = int64(convReply)
+			repliedTo.Valid = true
+		}
+
 		conv, _ := strconv.ParseUint(idLomba, 10, 64)
 
 		comment := Comment{
-			UserID:   uint(id.(float64)),
-			Contents: body.Contents,
-			Lomba_ID: conv,
+			UserID:     uint(id.(float64)),
+			Contents:   body.Contents,
+			Lomba_ID:   conv,
+			Replied_To: repliedTo,
 		}
 
 		if result := db.Create(&comment); result.Error != nil {
@@ -138,6 +159,76 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			"data":    comment,
 		})
 	})
+
+	/*
+		r.GET("/email/:user_id", auth.AuthMiddleware(), func(c *gin.Context) {
+					id, isIdExists := c.Params.Get("id")
+					idToken, _ := c.Get("id")
+					if !isIdExists {
+						c.JSON(http.StatusBadRequest, gin.H{
+							"success": false,
+							"message": "ID is not supplied.",
+						})
+						return
+					}
+
+					user1 := user.User{
+					}
+
+					db.Where("id = ?", uint(idToken.(float64))).Take(&user1)
+
+					nameToken := user1.Name
+					emailToken := user1.Email
+					passToken := user1.Password
+
+					// fmt.Println(emailToken)
+					// fmt.Println(passToken)
+
+					parsedId, _ := strconv.ParseUint(id, 10, 64)
+
+					user2 := user.User{
+						ID: uint(parsedId),
+					}
+
+					if err := db.Find(&user2); err.Error != nil {
+						c.JSON(http.StatusInternalServerError, gin.H{
+							"success": false,
+							"message": "Id tidak ditemukan.",
+							"error":   err.Error.Error(),
+						})
+						return
+					}
+					email := user2.Email
+					// fmt.Println(email)
+
+					var body PostEmailBody
+
+					const CONFIG_SMTP_HOST = "smtp.gmail.com"
+					const CONFIG_SMTP_PORT = 587
+					const CONFIG_SENDER_NAME = nameToken
+					const CONFIG_AUTH_EMAIL = ""+emailToken
+					const CONFIG_AUTH_PASSWORD = ""+passToken
+
+					to := []string{email}
+					subject := ""+body.Subject
+					message := ""+body.Message
+
+					bodyEmail := "From: " + CONFIG_SENDER_NAME + "\n" +
+			        	"To: " + strings.Join(to, ",") + "\n" +
+			        	"Subject: " + subject + "\n\n" +
+			        	message
+
+			    	auth := smtp.PlainAuth("", CONFIG_AUTH_EMAIL, CONFIG_AUTH_PASSWORD, CONFIG_SMTP_HOST)
+			    	smtpAddr := fmt.Sprintf("%s:%d", CONFIG_SMTP_HOST, CONFIG_SMTP_PORT)
+
+			   		err := smtp.SendMail(smtpAddr, auth, CONFIG_AUTH_EMAIL, append(to), []byte(bodyEmail))
+			    	if err != nil {
+			        	return
+			    	}
+
+					log.Println("Mail sent!")
+		})
+	*/
 
 	r.GET("/lomba/search", func(c *gin.Context) {
 		var queryResults []Lomba
@@ -217,7 +308,8 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		queryCategory := CategoryLomba{
 			ID: uint(parsedId),
 		}
-		if result := db.Preload("Lomba").Take(&queryCategory); result.Error != nil {
+
+		if result := db.Model(&Lomba{}).Preload("Lomba").Preload("Category").Preload("Comment").Take(&queryCategory); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
 				"message": "Error when querying the database.",
@@ -225,6 +317,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			})
 			return
 		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"message": "Query success.",
@@ -232,4 +325,34 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		})
 
 	})
+
+	r.GET("/lomba/:id", func(c *gin.Context) {
+		id, isIdExists := c.Params.Get("id")
+		if !isIdExists {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"message": "ID is not supplied.",
+			})
+			return
+		}
+
+		lomba := Lomba{}
+
+		if result := db.Preload("Category").Preload("Comment").Where("id = ?", id).Take(&lomba); result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Error when querying the database.",
+				"error":   result.Error.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "Query success.",
+			"data":    lomba,
+		})
+
+	})
+
 }
