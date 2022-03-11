@@ -308,8 +308,8 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		queryCategory := CategoryLomba{
 			ID: uint(parsedId),
 		}
-
-		if result := db.Model(&Lomba{}).Preload("Lomba").Preload("Category").Preload("Comment").Take(&queryCategory); result.Error != nil {
+		
+		if result := db.Preload("Lomba").Take(&queryCategory); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
 				"message": "Error when querying the database.",
