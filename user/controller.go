@@ -1,6 +1,8 @@
 package user
 
 import (
+	"fmt"
+	"math/rand"
 	"net/http"
 	"raih-asa/auth"
 	"strconv"
@@ -15,6 +17,16 @@ import (
 func HashPassword(password string) (string, error) {
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(hash), err
+}
+
+func RandomString(n int) string {
+	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+
+	s := make([]rune, n)
+	for i := range s {
+		s[i] = letters[rand.Intn(len(letters))]
+	}
+	return string(s)
 }
 
 func InitRouter(db *gorm.DB, r *gin.Engine) {
@@ -241,7 +253,6 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			ID:         uint(parsedId),
 			Name:       body.Name,
 			Email:      body.Email,
-			Foto:       body.Foto,
 			Pengalaman: body.Pengalaman,
 			Skill:      body.Skill,
 			Deskripsi:  body.Deskripsi,
@@ -299,14 +310,10 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			return
 		}
 
-		// hash, _ := HashPassword(body.Password)
-
 		user := User{
 			ID:    uint(id.(float64)),
 			Name:  body.Name,
 			Email: body.Email,
-			// Password:   hash,
-			Foto:       body.Foto,
 			Pengalaman: body.Pengalaman,
 			Skill:      body.Skill,
 			Deskripsi:  body.Deskripsi,
@@ -382,6 +389,40 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			"success": true,
 			"message": "Delete success.",
 		})
+	})
+
+	r.Static("/asset", "./asset")
+	r.POST("/user/token/uploadfoto", auth.AuthMiddleware(), func(c *gin.Context) {
+		id, _ := c.Get("id")
+
+		file, err := c.FormFile("file")
+		if err != nil {
+			c.JSON(http.StatusBadRequest, fmt.Sprintf("get form err: %s", err.Error()))
+			return
+		}
+		
+		path := "asset/foto_profile/" + RandomString(10) + file.Filename
+		if err := c.SaveUploadedFile(file, path); err != nil {
+			c.JSON(http.StatusBadRequest, fmt.Sprintf("upload file err: %s", err.Error()))
+			return
+		}
+		
+		userUpdate := User{
+			ID:   uint(id.(float64)),
+			Foto: path,
+		}
+
+		resultUpdate := db.Model(&userUpdate).Updates(userUpdate).Where("id = ?", id).Take(&userUpdate)
+		if resultUpdate.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Error when updating the database.",
+				"error":   resultUpdate.Error.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, fmt.Sprintf("Foto %s, file : %s, uploaded successfully", userUpdate.Name,file.Filename))
 	})
 
 }

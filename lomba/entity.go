@@ -16,7 +16,7 @@ type Lomba struct {
 	CP            string          `json:"cp"`
 	Link          string          `json:"link"`
 	Category      []CategoryLomba `gorm:"many2many:lomba_category;"`
-	Comment       []Comment       `gorm:"foreignKey:Lomba_ID"`
+	Comment       []Comment       `gorm:"foreignKey:LombaID"`
 }
 
 type CategoryLomba struct {
@@ -27,9 +27,9 @@ type CategoryLomba struct {
 
 type Comment struct {
 	ID         uint   `gorm : "primarykey"`
+	LombaID   uint64
 	UserID     uint   `json:"user_id"`
 	Contents   string `json:"contents"`
-	Lomba_ID   uint64
 	Replied_To sql.NullInt64 `json:"replied_to"`
 }
 

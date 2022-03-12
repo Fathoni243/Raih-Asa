@@ -104,13 +104,13 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		}
 
 		if isJudulExists {
-			trx = trx.Where("judul LIKE ?", "%"+judul+"%")
+			trx = trx.Model(&Beasiswa{}).Preload("Category").Where("judul LIKE ?", "%"+judul+"%")
 		}
 		if isPenyelenggaraExists {
-			trx = trx.Where("penyelenggara LIKE ?", "%"+penyelenggara+"%")
+			trx = trx.Model(&Beasiswa{}).Preload("Category").Where("penyelenggara LIKE ?", "%"+penyelenggara+"%")
 		}
 		if isDeskripsiExists {
-			trx = trx.Where("deskripsi LIKE ?", "%"+deskripsi+"%")
+			trx = trx.Model(&Beasiswa{}).Preload("Category").Where("deskripsi LIKE ?", "%"+deskripsi+"%")
 		}
 
 		result := trx.Find(&queryResults)
@@ -139,6 +139,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 
 	r.GET("/beasiswa/category/:category_beasiswa_id", func(c *gin.Context) {
 		id, isIdExists := c.Params.Get("category_beasiswa_id")
+		trx := db
 		if !isIdExists {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
@@ -159,7 +160,9 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		queryCategory := CategoryBeasiswa{
 			ID: uint(parsedId),
 		}
-		if result := db.Preload("Beasiswa").Take(&queryCategory); result.Error != nil {
+		queryBeasiswa := []Beasiswa{}
+
+		if result := db.Preload("Beasiswa").Where("id = ?", queryCategory.ID).Take(&queryCategory); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
 				"message": "Error when querying the database.",
@@ -167,10 +170,27 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			})
 			return
 		}
+
+		var listArrId = []uint{}
+		for i := 0; i < len(queryCategory.Beasiswa); i++ {
+			add := append(listArrId, queryCategory.Beasiswa[i].ID)
+			listArrId = add
+		}
+
+		trx = trx.Model(&Beasiswa{}).Preload("Category").Where("id IN ?", listArrId).Find(&queryBeasiswa)
+
+		trx.Model(&Beasiswa{}).Preload("Category").Find(&queryBeasiswa)
+
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"message": "Query success.",
-			"data":    queryCategory,
+			"data": gin.H{
+				"query": gin.H{
+					"ID":            queryCategory.ID,
+					"Name_Category": queryCategory.Name_Category,
+				},
+				"result": queryBeasiswa,
+			},
 		})
 
 	})

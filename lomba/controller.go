@@ -138,9 +138,9 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		conv, _ := strconv.ParseUint(idLomba, 10, 64)
 
 		comment := Comment{
+			LombaID:    conv,
 			UserID:     uint(id.(float64)),
 			Contents:   body.Contents,
-			Lomba_ID:   conv,
 			Replied_To: repliedTo,
 		}
 
@@ -253,13 +253,13 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		}
 
 		if isJudulExists {
-			trx = trx.Where("judul LIKE ?", "%"+judul+"%")
+			trx = trx.Model(&Lomba{}).Preload("Category").Preload("Comment").Where("judul LIKE ?", "%"+judul+"%")
 		}
 		if isPenyelenggaraExists {
-			trx = trx.Where("penyelenggara LIKE ?", "%"+penyelenggara+"%")
+			trx = trx.Model(&Lomba{}).Preload("Category").Preload("Comment").Where("penyelenggara LIKE ?", "%"+penyelenggara+"%")
 		}
 		if isDeskripsiExists {
-			trx = trx.Where("deskripsi LIKE ?", "%"+deskripsi+"%")
+			trx = trx.Model(&Lomba{}).Preload("Category").Preload("Comment").Where("deskripsi LIKE ?", "%"+deskripsi+"%")
 		}
 
 		result := trx.Find(&queryResults)
@@ -288,6 +288,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 
 	r.GET("/lomba/category/:category_lomba_id", func(c *gin.Context) {
 		id, isIdExists := c.Params.Get("category_lomba_id")
+		trx := db
 		if !isIdExists {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"success": false,
@@ -308,8 +309,10 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		queryCategory := CategoryLomba{
 			ID: uint(parsedId),
 		}
-		
-		if result := db.Preload("Lomba").Take(&queryCategory); result.Error != nil {
+
+		queryLomba := []Lomba{}
+
+		if result := db.Preload("Lomba").Where("id = ?", queryCategory.ID).Take(&queryCategory); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
 				"message": "Error when querying the database.",
@@ -318,10 +321,26 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			return
 		}
 
+		var listArrId = []uint{}
+		for i := 0; i < len(queryCategory.Lomba); i++ {
+			add := append(listArrId, queryCategory.Lomba[i].ID)
+			listArrId = add
+		}
+
+		trx = trx.Model(&Lomba{}).Preload("Category").Preload("Comment").Where("id IN ?", listArrId).Find(&queryLomba)
+
+		trx.Model(&Lomba{}).Preload("Category").Preload("Comment").Find(&queryLomba)
+
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"message": "Query success.",
-			"data":    queryCategory,
+			"data": gin.H{
+				"query": gin.H{
+					"ID":            queryCategory.ID,
+					"Name_Category": queryCategory.Name_Category,
+				},
+				"result": queryLomba,
+			},
 		})
 
 	})

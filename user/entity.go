@@ -1,14 +1,19 @@
 package user
 
+import (
+	"raih-asa/lomba"
+)
+
 type User struct {
-	ID         uint   `gorm : "primarykey"`
-	Name       string `json:"name"`
-	Email      string `json:"email"`
-	Password   string `json:"password"`
-	Foto       string `json:"foto"`
-	Pengalaman string `json:"pengalaman"`
-	Skill      string `json:"skill"`
-	Deskripsi  string `json:"deskripsi"`
+	ID         uint            `gorm : "primarykey"`
+	Name       string          `json:"name"`
+	Email      string          `json:"email"`
+	Password   string          `json:"password"`
+	Foto       string          `json:"foto"`
+	Pengalaman string          `json:"pengalaman"`
+	Skill      string          `json:"skill"`
+	Deskripsi  string          `json:"deskripsi"`
+	Comment    []lomba.Comment `gorm:"foreignKey:UserID"`
 }
 
 type CekPassword struct {
@@ -34,7 +39,6 @@ type PostLoginBody struct {
 type PatchUserBody struct {
 	Name       string `json:"name"`
 	Email      string `json:"email"`
-	Foto       string `json:"foto"`
 	Pengalaman string `json:"pengalaman"`
 	Skill      string `json:"skill"`
 	Deskripsi  string `json:"deskripsi"`
