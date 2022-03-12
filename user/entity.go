@@ -16,11 +16,6 @@ type User struct {
 	Comment    []lomba.Comment `gorm:"foreignKey:UserID"`
 }
 
-type CekPassword struct {
-	Name_User    string `json:"name_user"`
-	Cek_Password string `json:"cek_password"`
-}
-
 type PostRegisterBody struct {
 	Name       string `json: "name"`
 	Email      string `json: "email"`

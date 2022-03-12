@@ -45,18 +45,9 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		hash, _ := HashPassword(body.Password)
 
 		user := User{
-			Name:       body.Name,
-			Email:      body.Email,
-			Password:   hash,
-			Foto:       body.Foto,
-			Pengalaman: body.Pengalaman,
-			Skill:      body.Skill,
-			Deskripsi:  body.Deskripsi,
-		}
-		//pengecekan isi password
-		cekPass := CekPassword{
-			Name_User:    body.Name,
-			Cek_Password: body.Password,
+			Name:     body.Name,
+			Email:    body.Email,
+			Password: hash,
 		}
 
 		var cek = []byte(body.Password)
@@ -68,9 +59,17 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			}
 		}
 
-		if (len(body.Password) >= 8) && (cek[0] >= 65 && cek[0] <= 90) && angka == true {
+		cekEmail := User{}
+		db.Where("email = ?", body.Email).Take(&cekEmail)
+
+		if body.Email == cekEmail.Email {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Email sudah ada",
+			})
+			return
+		} else if (len(body.Password) >= 8) && (cek[0] >= 65 && cek[0] <= 90) && angka == true {
 			result := db.Create(&user)
-			db.Create(&cekPass) //create Cek Password
 			if result.Error != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"success": false,
@@ -82,7 +81,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		} else {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"message": "Password harus lebih dari 8 karakter, Huruf pertama harus kapital, Password harus terdapat angka",
+				"message": "Password tidak sesuai dengan kriteria",
 			})
 			return
 		}
@@ -91,8 +90,112 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			"success": true,
 			"message": "Akun berhasil dibuat.",
 			"data": gin.H{
-				"nama":  user.Name,
+				"name":  user.Name,
 				"email": user.Email,
+			},
+		})
+	})
+
+	r.POST("/user/login", func(c *gin.Context) {
+		var body PostLoginBody
+		if err := c.BindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"message": "Body is invalid",
+				"error":   err.Error(),
+			})
+			return
+		}
+		user := User{}
+		if result := db.Where("email = ?", body.Email).Take(&user); result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Email tidak ditemukan.",
+				"error":   result.Error.Error(),
+			})
+			return
+		}
+
+		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password)); err == nil {
+			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+				"id":  user.ID,
+				"exp": time.Now().Add(time.Hour * 24 * 7).Unix(),
+			})
+			tokenString, err := token.SignedString([]byte("passwordBuatSigning"))
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{
+					"success": false,
+					"message": "Error when generating the token.",
+					"error":   err.Error(),
+				})
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{
+				"success": true,
+				"message": "Login Berhasil.",
+				"data": gin.H{
+					"name":  user.Name,
+					"email": user.Email,
+					"token": tokenString,
+				},
+			})
+			return
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Password salah.",
+			})
+			return
+		}
+	})
+
+	r.Static("/asset", "./asset")
+	r.POST("/user/token/uploadfoto", auth.AuthMiddleware(), func(c *gin.Context) {
+		id, _ := c.Get("id")
+
+		file, err := c.FormFile("file")
+		if err != nil {
+			// c.JSON(http.StatusBadRequest, fmt.Sprintf("Gagal mendapatkan foto: %s", err.Error()))
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Belum memilih foto",
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		path := "/foto_profile/" + RandomString(10) + file.Filename
+		if err := c.SaveUploadedFile(file, path); err != nil {
+			// c.JSON(http.StatusBadRequest, fmt.Sprintf("upload file err: %s", err.Error()))
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": fmt.Sprintf("Upload file %s error",file.Filename),
+				"error":   err.Error(),
+			})
+			return
+		}
+
+		userUpdate := User{
+			ID:   uint(id.(float64)),
+			Foto: path,
+		}
+
+		resultUpdate := db.Model(&userUpdate).Updates(userUpdate).Where("id = ?", id).Take(&userUpdate)
+		if resultUpdate.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Error when updating the database.",
+				"error":   resultUpdate.Error.Error(),
+			})
+			return
+		}
+		
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "Upload foto sukses.",
+			"data": gin.H{
+				"Name User": userUpdate.Name,
+				"Nama File": file.Filename,
 			},
 		})
 	})
@@ -147,59 +250,6 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			"message": "Query successful.",
 			"data":    body,
 		})
-	})
-
-	r.POST("/user/login", func(c *gin.Context) {
-		var body PostLoginBody
-		if err := c.BindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": false,
-				"message": "Body is invalid",
-				"error":   err.Error(),
-			})
-			return
-		}
-		user := User{}
-		if result := db.Where("email = ?", body.Email).Take(&user); result.Error != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"message": "Email tidak ditemukan.",
-				"error":   result.Error.Error(),
-			})
-			return
-		}
-
-		if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(body.Password)); err == nil {
-			token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-				"id":  user.ID,
-				"exp": time.Now().Add(time.Hour * 24 * 7).Unix(),
-			})
-			tokenString, err := token.SignedString([]byte("passwordBuatSigning"))
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"success": false,
-					"message": "Error when generating the token.",
-					"error":   err.Error(),
-				})
-				return
-			}
-			c.JSON(http.StatusOK, gin.H{
-				"success": true,
-				"message": "Login Berhasil.",
-				"data": gin.H{
-					"name":  user.Name,
-					"email": user.Email,
-					"token": tokenString,
-				},
-			})
-			return
-		} else {
-			c.JSON(http.StatusForbidden, gin.H{
-				"success": false,
-				"message": "Password salah.",
-			})
-			return
-		}
 	})
 
 	r.GET("/user/token", auth.AuthMiddleware(), func(c *gin.Context) {
@@ -311,9 +361,9 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		}
 
 		user := User{
-			ID:    uint(id.(float64)),
-			Name:  body.Name,
-			Email: body.Email,
+			ID:         uint(id.(float64)),
+			Name:       body.Name,
+			Email:      body.Email,
 			Pengalaman: body.Pengalaman,
 			Skill:      body.Skill,
 			Deskripsi:  body.Deskripsi,
@@ -389,40 +439,6 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			"success": true,
 			"message": "Delete success.",
 		})
-	})
-
-	r.Static("/asset", "./asset")
-	r.POST("/user/token/uploadfoto", auth.AuthMiddleware(), func(c *gin.Context) {
-		id, _ := c.Get("id")
-
-		file, err := c.FormFile("file")
-		if err != nil {
-			c.JSON(http.StatusBadRequest, fmt.Sprintf("get form err: %s", err.Error()))
-			return
-		}
-		
-		path := "asset/foto_profile/" + RandomString(10) + file.Filename
-		if err := c.SaveUploadedFile(file, path); err != nil {
-			c.JSON(http.StatusBadRequest, fmt.Sprintf("upload file err: %s", err.Error()))
-			return
-		}
-		
-		userUpdate := User{
-			ID:   uint(id.(float64)),
-			Foto: path,
-		}
-
-		resultUpdate := db.Model(&userUpdate).Updates(userUpdate).Where("id = ?", id).Take(&userUpdate)
-		if resultUpdate.Error != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"message": "Error when updating the database.",
-				"error":   resultUpdate.Error.Error(),
-			})
-			return
-		}
-
-		c.JSON(http.StatusOK, fmt.Sprintf("Foto %s, file : %s, uploaded successfully", userUpdate.Name,file.Filename))
 	})
 
 }

@@ -160,8 +160,9 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		})
 	})
 
+	//Coba tapi Gagal
 	/*
-		r.GET("/email/:user_id", auth.AuthMiddleware(), func(c *gin.Context) {
+	r.GET("/email/:user_id", auth.AuthMiddleware(), func(c *gin.Context) {
 					id, isIdExists := c.Params.Get("id")
 					idToken, _ := c.Get("id")
 					if !isIdExists {

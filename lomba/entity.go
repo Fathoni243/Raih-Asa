@@ -2,8 +2,6 @@ package lomba
 
 import "database/sql"
 
-// "database/sql"
-
 type Lomba struct {
 	ID            uint            `gorm : "primarykey"`
 	Judul         string          `json:"judul"`
@@ -26,10 +24,10 @@ type CategoryLomba struct {
 }
 
 type Comment struct {
-	ID         uint   `gorm : "primarykey"`
-	LombaID   uint64
-	UserID     uint   `json:"user_id"`
-	Contents   string `json:"contents"`
+	ID         uint `gorm : "primarykey"`
+	LombaID    uint64
+	UserID     uint          `json:"user_id"`
+	Contents   string        `json:"contents"`
 	Replied_To sql.NullInt64 `json:"replied_to"`
 }
 
