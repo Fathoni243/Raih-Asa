@@ -45,6 +45,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			"success": true,
 			"message": "Kategori berhasil dibuat.",
 			"data": gin.H{
+				"id" : category.ID,
 				"nama kategori": category.Name_Category,
 			},
 		})
@@ -99,7 +100,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			})
 			return
 		}
-		
+
 		var body PostCommentBody
 		if err := c.BindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{

@@ -37,6 +37,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			"success": true,
 			"message": "Kategori berhasil dibuat.",
 			"data": gin.H{
+				"id" : category.ID,
 				"nama kategori": category.Name_Category,
 			},
 		})
