@@ -18,6 +18,38 @@ func sendMail(to []string, subject, message string) error {
 
 func InitRouter(db *gorm.DB, r *gin.Engine) {
 
+	r.POST("/lomba/category", func(c *gin.Context) {
+		var body beasiswa.PostCategoryBody
+		if err := c.BindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"message": "Body is invalid",
+				"error":   err.Error(),
+			})
+			return
+		}
+		category := CategoryLomba{
+			Name_Category: body.Name_Category,
+		}
+
+		if result := db.Create(&category); result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Error saat memasukkan ke database.",
+				"error":   result.Error.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{
+			"success": true,
+			"message": "Kategori berhasil dibuat.",
+			"data": gin.H{
+				"nama kategori": category.Name_Category,
+			},
+		})
+	})
+
 	r.POST("/lomba", func(c *gin.Context) {
 		var body PostLombaBody
 		if err := c.BindJSON(&body); err != nil {
@@ -44,7 +76,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		if result := db.Create(&lomba); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"message": "Error when inserting into the database.",
+				"message": "Error saat memasukkan ke database.",
 				"error":   result.Error.Error(),
 			})
 			return
@@ -53,57 +85,21 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		c.JSON(http.StatusCreated, gin.H{
 			"success": true,
 			"message": "Lomba berhasil dibuat.",
-			"data": gin.H{
-				"judul":          lomba.Judul,
-				"penyelenggara":  lomba.Penyelenggara,
-				"deskripsi":      lomba.Deskripsi,
-				"poster":         lomba.Poster,
-				"tanggal daftar": lomba.TanggalDaftar,
-				"tanggal akhir":  lomba.TanggalAkhir,
-				"syarat":         lomba.Syarat,
-				"cp":             lomba.CP,
-				"link":           lomba.Link,
-				"Category":       lomba.Category,
-			},
-		})
-	})
-
-	r.POST("/lomba/category", func(c *gin.Context) {
-		var body beasiswa.PostCategoryBody
-		if err := c.BindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": false,
-				"message": "Body is invalid",
-				"error":   err.Error(),
-			})
-			return
-		}
-		category := CategoryLomba{
-			Name_Category: body.Name_Category,
-		}
-
-		if result := db.Create(&category); result.Error != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"message": "Error when inserting into the database.",
-				"error":   result.Error.Error(),
-			})
-			return
-		}
-
-		c.JSON(http.StatusCreated, gin.H{
-			"success": true,
-			"message": "Kategori berhasil dibuat.",
-			"data": gin.H{
-				"nama kategori": category.Name_Category,
-			},
+			"data":    lomba,
 		})
 	})
 
 	r.POST("/lomba/comment/:id_lomba", auth.AuthMiddleware(), func(c *gin.Context) {
-		idLomba, _ := c.Params.Get("id_lomba")
+		idLomba, isIdExists := c.Params.Get("id_lomba")
 		id, _ := c.Get("id")
-
+		if !isIdExists {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"message": "ID is not supplied.",
+			})
+			return
+		}
+		
 		var body PostCommentBody
 		if err := c.BindJSON(&body); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -147,7 +143,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		if result := db.Create(&comment); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"message": "Error when inserting into the database.",
+				"message": "Error saat memasukkan ke database.",
 				"error":   result.Error.Error(),
 			})
 			return
@@ -162,73 +158,73 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 
 	//Coba tapi Gagal
 	/*
-	r.GET("/email/:user_id", auth.AuthMiddleware(), func(c *gin.Context) {
-					id, isIdExists := c.Params.Get("id")
-					idToken, _ := c.Get("id")
-					if !isIdExists {
-						c.JSON(http.StatusBadRequest, gin.H{
-							"success": false,
-							"message": "ID is not supplied.",
-						})
-						return
-					}
+		r.GET("/email/:user_id", auth.AuthMiddleware(), func(c *gin.Context) {
+						id, isIdExists := c.Params.Get("id")
+						idToken, _ := c.Get("id")
+						if !isIdExists {
+							c.JSON(http.StatusBadRequest, gin.H{
+								"success": false,
+								"message": "ID is not supplied.",
+							})
+							return
+						}
 
-					user1 := user.User{
-					}
+						user1 := user.User{
+						}
 
-					db.Where("id = ?", uint(idToken.(float64))).Take(&user1)
+						db.Where("id = ?", uint(idToken.(float64))).Take(&user1)
 
-					nameToken := user1.Name
-					emailToken := user1.Email
-					passToken := user1.Password
+						nameToken := user1.Name
+						emailToken := user1.Email
+						passToken := user1.Password
 
-					// fmt.Println(emailToken)
-					// fmt.Println(passToken)
+						// fmt.Println(emailToken)
+						// fmt.Println(passToken)
 
-					parsedId, _ := strconv.ParseUint(id, 10, 64)
+						parsedId, _ := strconv.ParseUint(id, 10, 64)
 
-					user2 := user.User{
-						ID: uint(parsedId),
-					}
+						user2 := user.User{
+							ID: uint(parsedId),
+						}
 
-					if err := db.Find(&user2); err.Error != nil {
-						c.JSON(http.StatusInternalServerError, gin.H{
-							"success": false,
-							"message": "Id tidak ditemukan.",
-							"error":   err.Error.Error(),
-						})
-						return
-					}
-					email := user2.Email
-					// fmt.Println(email)
+						if err := db.Find(&user2); err.Error != nil {
+							c.JSON(http.StatusInternalServerError, gin.H{
+								"success": false,
+								"message": "Id tidak ditemukan.",
+								"error":   err.Error.Error(),
+							})
+							return
+						}
+						email := user2.Email
+						// fmt.Println(email)
 
-					var body PostEmailBody
+						var body PostEmailBody
 
-					const CONFIG_SMTP_HOST = "smtp.gmail.com"
-					const CONFIG_SMTP_PORT = 587
-					const CONFIG_SENDER_NAME = nameToken
-					const CONFIG_AUTH_EMAIL = ""+emailToken
-					const CONFIG_AUTH_PASSWORD = ""+passToken
+						const CONFIG_SMTP_HOST = "smtp.gmail.com"
+						const CONFIG_SMTP_PORT = 587
+						const CONFIG_SENDER_NAME = nameToken
+						const CONFIG_AUTH_EMAIL = ""+emailToken
+						const CONFIG_AUTH_PASSWORD = ""+passToken
 
-					to := []string{email}
-					subject := ""+body.Subject
-					message := ""+body.Message
+						to := []string{email}
+						subject := ""+body.Subject
+						message := ""+body.Message
 
-					bodyEmail := "From: " + CONFIG_SENDER_NAME + "\n" +
-			        	"To: " + strings.Join(to, ",") + "\n" +
-			        	"Subject: " + subject + "\n\n" +
-			        	message
+						bodyEmail := "From: " + CONFIG_SENDER_NAME + "\n" +
+				        	"To: " + strings.Join(to, ",") + "\n" +
+				        	"Subject: " + subject + "\n\n" +
+				        	message
 
-			    	auth := smtp.PlainAuth("", CONFIG_AUTH_EMAIL, CONFIG_AUTH_PASSWORD, CONFIG_SMTP_HOST)
-			    	smtpAddr := fmt.Sprintf("%s:%d", CONFIG_SMTP_HOST, CONFIG_SMTP_PORT)
+				    	auth := smtp.PlainAuth("", CONFIG_AUTH_EMAIL, CONFIG_AUTH_PASSWORD, CONFIG_SMTP_HOST)
+				    	smtpAddr := fmt.Sprintf("%s:%d", CONFIG_SMTP_HOST, CONFIG_SMTP_PORT)
 
-			   		err := smtp.SendMail(smtpAddr, auth, CONFIG_AUTH_EMAIL, append(to), []byte(bodyEmail))
-			    	if err != nil {
-			        	return
-			    	}
+				   		err := smtp.SendMail(smtpAddr, auth, CONFIG_AUTH_EMAIL, append(to), []byte(bodyEmail))
+				    	if err != nil {
+				        	return
+				    	}
 
-					log.Println("Mail sent!")
-		})
+						log.Println("Mail sent!")
+			})
 	*/
 
 	r.GET("/lomba/search", func(c *gin.Context) {
@@ -238,8 +234,10 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		judul, isJudulExists := c.GetQuery("judul")
 		penyelenggara, isPenyelenggaraExists := c.GetQuery("penyelenggara")
 		deskripsi, isDeskripsiExists := c.GetQuery("deskripsi")
+		tanggal_daftar, isTanggalDaftarExists := c.GetQuery("tanggal_daftar")
+		tanggal_akhir, isTanggalAkhirExists := c.GetQuery("tanggal_akhir")
 
-		if !isJudulExists && !isPenyelenggaraExists && !isDeskripsiExists {
+		if !isJudulExists && !isPenyelenggaraExists && !isDeskripsiExists && !isTanggalDaftarExists && !isTanggalAkhirExists {
 			if result := trx.Find(&queryResults); result.Error != nil {
 				c.JSON(http.StatusBadRequest, gin.H{
 					"success": false,
@@ -262,6 +260,12 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		if isDeskripsiExists {
 			trx = trx.Model(&Lomba{}).Preload("Category").Preload("Comment").Where("deskripsi LIKE ?", "%"+deskripsi+"%")
 		}
+		if isTanggalDaftarExists {
+			trx = trx.Model(&Lomba{}).Preload("Category").Preload("Comment").Where("tanggal_daftar LIKE ?", "%"+tanggal_daftar+"%")
+		}
+		if isTanggalAkhirExists {
+			trx = trx.Model(&Lomba{}).Preload("Category").Preload("Comment").Where("tanggal_akhir LIKE ?", "%"+tanggal_akhir+"%")
+		}
 
 		result := trx.Find(&queryResults)
 		if result.Error != nil {
@@ -275,12 +279,14 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "Search success",
+			"message": "Search sukses",
 			"data": gin.H{
 				"query": gin.H{
 					"judul":         judul,
 					"penyelenggara": penyelenggara,
 					"deskripsi":     deskripsi,
+					"tanggal awal":  tanggal_daftar,
+					"tanggal akhir":  tanggal_akhir,
 				},
 				"result": queryResults,
 			},
@@ -316,7 +322,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		if result := db.Preload("Lomba").Where("id = ?", queryCategory.ID).Take(&queryCategory); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"message": "Error when querying the database.",
+				"message": "Id kategori tidak ditemukan.",
 				"error":   result.Error.Error(),
 			})
 			return
@@ -334,7 +340,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "Query success.",
+			"message": "Filter Kategori Berhasil.",
 			"data": gin.H{
 				"query": gin.H{
 					"ID":            queryCategory.ID,
@@ -361,7 +367,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		if result := db.Preload("Category").Preload("Comment").Where("id = ?", id).Take(&lomba); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"message": "Error when querying the database.",
+				"message": "Id tidak ditemukan.",
 				"error":   result.Error.Error(),
 			})
 			return
@@ -369,7 +375,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "Query success.",
+			"message": "Lomba berhasil ditampikan.",
 			"data":    lomba,
 		})
 

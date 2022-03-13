@@ -20,7 +20,7 @@ func HashPassword(password string) (string, error) {
 }
 
 func RandomString(n int) string {
-	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+	var letters = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ01234567890")
 
 	s := make([]rune, n)
 	for i := range s {
@@ -155,7 +155,6 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 
 		file, err := c.FormFile("file")
 		if err != nil {
-			// c.JSON(http.StatusBadRequest, fmt.Sprintf("Gagal mendapatkan foto: %s", err.Error()))
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
 				"message": "Belum memilih foto",
@@ -164,12 +163,11 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			return
 		}
 
-		path := "/foto_profile/" + RandomString(10) + file.Filename
+		path := "asset/foto_profile/" + RandomString(10) + file.Filename
 		if err := c.SaveUploadedFile(file, path); err != nil {
-			// c.JSON(http.StatusBadRequest, fmt.Sprintf("upload file err: %s", err.Error()))
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"message": fmt.Sprintf("Upload file %s error",file.Filename),
+				"message": fmt.Sprintf("Upload file %s error", file.Filename),
 				"error":   err.Error(),
 			})
 			return
@@ -189,85 +187,14 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			})
 			return
 		}
-		
+
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
 			"message": "Upload foto sukses.",
 			"data": gin.H{
-				"Name User": userUpdate.Name,
+				"Nama User": userUpdate.Name,
 				"Nama File": file.Filename,
 			},
-		})
-	})
-
-	r.GET("/user/:id", func(c *gin.Context) {
-		id, isIdExists := c.Params.Get("id")
-		if !isIdExists {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": false,
-				"message": "ID is not supplied.",
-			})
-			return
-		}
-		user := User{}
-		if result := db.Where("id = ?", id).Take(&user); result.Error != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"message": "Error when querying the database.",
-				"error":   result.Error.Error(),
-			})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": "Query success.",
-			"data": gin.H{
-				"ID":         user.ID,
-				"nama":       user.Name,
-				"email":      user.Email,
-				"foto":       user.Foto,
-				"pengalaman": user.Pengalaman,
-				"skill":      user.Skill,
-				"deskripsi":  user.Deskripsi,
-			},
-		})
-	})
-
-	r.GET("/user", func(c *gin.Context) {
-		var body []DisplayUserBody
-
-		if result := db.Model(&User{}).Find(&body); result.Error != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"message": "Error when querying the database.",
-				"error":   result.Error.Error(),
-			})
-			return
-		}
-
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": "Query successful.",
-			"data":    body,
-		})
-	})
-
-	r.GET("/user/token", auth.AuthMiddleware(), func(c *gin.Context) {
-		id, _ := c.Get("id")
-		var body []DisplayUserBody
-
-		if result := db.Model(&User{}).Where("id = ?", id).Take(&body); result.Error != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"message": "Error when querying the database.",
-				"error":   result.Error.Error(),
-			})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{
-			"success": true,
-			"message": "Query success",
-			"data":    body,
 		})
 	})
 
@@ -313,7 +240,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		if result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"message": "Error when updating the database.",
+				"message": "Error saat update ke database.",
 				"error":   result.Error.Error(),
 			})
 			return
@@ -321,7 +248,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		if result = db.Where("id = ?", parsedId).Take(&user); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"message": "Error when querying the database.",
+				"message": "ID tidak ditemukan.",
 				"error":   result.Error.Error(),
 			})
 			return
@@ -329,15 +256,14 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		if result.RowsAffected < 1 {
 			c.JSON(http.StatusNotFound, gin.H{
 				"success": false,
-				"message": "User not found.",
+				"message": "User tidak ditemukan.",
 			})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "Update Success.",
+			"message": "Update sukses.",
 			"data": gin.H{
-				"ID":         user.ID,
 				"nama":       user.Name,
 				"Email":      user.Email,
 				"Foto":       user.Foto,
@@ -372,7 +298,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		if result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"message": "Error when updating the database.",
+				"message": "Error saat update ke database.",
 				"error":   result.Error.Error(),
 			})
 			return
@@ -380,7 +306,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		if result = db.Where("id = ?", id).Take(&user); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"message": "Error when querying the database.",
+				"message": "Id tidak ditemukan.",
 				"error":   result.Error.Error(),
 			})
 			return
@@ -388,15 +314,14 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		if result.RowsAffected < 1 {
 			c.JSON(http.StatusNotFound, gin.H{
 				"success": false,
-				"message": "User not found.",
+				"message": "User tidak ditemukan.",
 			})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "Update Success.",
+			"message": "Update Sukses.",
 			"data": gin.H{
-				"ID":         user.ID,
 				"nama":       user.Name,
 				"Email":      user.Email,
 				"Foto":       user.Foto,
@@ -407,7 +332,26 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		})
 	})
 
-	r.DELETE("/user/delete/:id", func(c *gin.Context) {
+	r.GET("/user/token", auth.AuthMiddleware(), func(c *gin.Context) {
+		id, _ := c.Get("id")
+		var body []DisplayUserBody
+
+		if result := db.Model(&User{}).Where("id = ?", id).Take(&body); result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Error when querying the database.",
+				"error":   result.Error.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "User berhasil ditampilkan",
+			"data":    body,
+		})
+	})
+
+	r.GET("/user/:id", func(c *gin.Context) {
 		id, isIdExists := c.Params.Get("id")
 		if !isIdExists {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -416,6 +360,51 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 			})
 			return
 		}
+		user := User{}
+		if result := db.Where("id = ?", id).Take(&user); result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Id tidak ditemukan.",
+				"error":   result.Error.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "User berhasil ditampilkan.",
+			"data": gin.H{
+				"ID":         user.ID,
+				"nama":       user.Name,
+				"email":      user.Email,
+				"foto":       user.Foto,
+				"pengalaman": user.Pengalaman,
+				"skill":      user.Skill,
+				"deskripsi":  user.Deskripsi,
+			},
+		})
+	})
+
+	r.GET("/user", func(c *gin.Context) {
+		var body []DisplayUserBody
+
+		if result := db.Model(&User{}).Find(&body); result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Error when querying the database.",
+				"error":   result.Error.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+			"message": "Semua user berhasil ditampilkan.",
+			"data":    body,
+		})
+	})
+
+	r.DELETE("/user/delete/:id", func(c *gin.Context) {
+		id, _ := c.Params.Get("id")
 		parsedId, err := strconv.ParseUint(id, 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -427,17 +416,17 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		user := User{
 			ID: uint(parsedId),
 		}
-		if result := db.Delete(&user); result.Error != nil {
+		if result := db.Delete(&user).Take(&user); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"message": "Error when deleting from the database.",
+				"message": "Id tidak ditemukan.",
 				"error":   result.Error.Error(),
 			})
 			return
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "Delete success.",
+			"message": "User berhasil dihapus.",
 		})
 	})
 

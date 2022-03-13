@@ -10,6 +10,38 @@ import (
 
 func InitRouter(db *gorm.DB, r *gin.Engine) {
 
+	r.POST("/beasiswa/category", func(c *gin.Context) {
+		var body PostCategoryBody
+		if err := c.BindJSON(&body); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"success": false,
+				"message": "Body is invalid",
+				"error":   err.Error(),
+			})
+			return
+		}
+		category := CategoryBeasiswa{
+			Name_Category: body.Name_Category,
+		}
+
+		if result := db.Create(&category); result.Error != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"success": false,
+				"message": "Error saat memasukkan ke database.",
+				"error":   result.Error.Error(),
+			})
+			return
+		}
+
+		c.JSON(http.StatusCreated, gin.H{
+			"success": true,
+			"message": "Kategori berhasil dibuat.",
+			"data": gin.H{
+				"nama kategori": category.Name_Category,
+			},
+		})
+	})
+
 	r.POST("/beasiswa", func(c *gin.Context) {
 		var body PostBeasiswaBody
 		if err := c.BindJSON(&body); err != nil {
@@ -36,7 +68,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		if result := db.Create(&beasiswa).Preload("category_beasiswa"); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"message": "Error when inserting into the database.",
+				"message": "Error saat memasukkan ke database.",
 				"error":   result.Error.Error(),
 			})
 			return
@@ -49,38 +81,6 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		})
 	})
 
-	r.POST("/beasiswa/category", func(c *gin.Context) {
-		var body PostCategoryBody
-		if err := c.BindJSON(&body); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"success": false,
-				"message": "Body is invalid",
-				"error":   err.Error(),
-			})
-			return
-		}
-		category := CategoryBeasiswa{
-			Name_Category: body.Name_Category,
-		}
-
-		if result := db.Create(&category); result.Error != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"success": false,
-				"message": "Error when inserting into the database.",
-				"error":   result.Error.Error(),
-			})
-			return
-		}
-
-		c.JSON(http.StatusCreated, gin.H{
-			"success": true,
-			"message": "Kategori berhasil dibuat.",
-			"data": gin.H{
-				"nama kategori": category.Name_Category,
-			},
-		})
-	})
-
 	r.GET("/beasiswa/search", func(c *gin.Context) {
 		var queryResults []Beasiswa
 		trx := db
@@ -88,8 +88,10 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		judul, isJudulExists := c.GetQuery("judul")
 		penyelenggara, isPenyelenggaraExists := c.GetQuery("penyelenggara")
 		deskripsi, isDeskripsiExists := c.GetQuery("deskripsi")
+		tanggal_daftar, isTanggalDaftarExists := c.GetQuery("tanggal_daftar")
+		tanggal_akhir, isTanggalAkhirExists := c.GetQuery("tanggal_akhir")
 
-		if !isJudulExists && !isPenyelenggaraExists && !isDeskripsiExists {
+		if !isJudulExists && !isPenyelenggaraExists && !isDeskripsiExists && !isTanggalDaftarExists && !isTanggalAkhirExists {
 			if result := trx.Find(&queryResults); result.Error != nil {
 				c.JSON(http.StatusBadRequest, gin.H{
 					"success": false,
@@ -112,6 +114,12 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		if isDeskripsiExists {
 			trx = trx.Model(&Beasiswa{}).Preload("Category").Where("deskripsi LIKE ?", "%"+deskripsi+"%")
 		}
+		if isTanggalDaftarExists {
+			trx = trx.Model(&Beasiswa{}).Preload("Category").Where("tanggal_daftar LIKE ?", "%"+tanggal_daftar+"%")
+		}
+		if isTanggalAkhirExists {
+			trx = trx.Model(&Beasiswa{}).Preload("Category").Where("tanggal_akhir LIKE ?", "%"+tanggal_akhir+"%")
+		}
 
 		result := trx.Find(&queryResults)
 		if result.Error != nil {
@@ -125,12 +133,14 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "Search success",
+			"message": "Search sukses.",
 			"data": gin.H{
 				"query": gin.H{
 					"judul":         judul,
 					"penyelenggara": penyelenggara,
 					"deskripsi":     deskripsi,
+					"tanggal awal": tanggal_daftar,
+					"tanggal akhir": tanggal_akhir,
 				},
 				"result": queryResults,
 			},
@@ -165,7 +175,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		if result := db.Preload("Beasiswa").Where("id = ?", queryCategory.ID).Take(&queryCategory); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"message": "Error when querying the database.",
+				"message": "Id Kategori tidak ditemukan.",
 				"error":   result.Error.Error(),
 			})
 			return
@@ -183,7 +193,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "Query success.",
+			"message": "Filter Kategori Berhasil.",
 			"data": gin.H{
 				"query": gin.H{
 					"ID":            queryCategory.ID,
@@ -210,7 +220,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 		if result := db.Preload("Category").Where("id = ?", id).Take(&beasiswa); result.Error != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"success": false,
-				"message": "Error when querying the database.",
+				"message": "Id tidak ditemukan.",
 				"error":   result.Error.Error(),
 			})
 			return
@@ -218,7 +228,7 @@ func InitRouter(db *gorm.DB, r *gin.Engine) {
 
 		c.JSON(http.StatusOK, gin.H{
 			"success": true,
-			"message": "Query success.",
+			"message": "Beasiswa berhasil ditampilkan.",
 			"data":    beasiswa,
 		})
 
